@@ -1,119 +1,1144 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CSS Quest — Terminal</title>
-<style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-*{box-sizing:border-box}
-body{margin:0;background:#0b0f14;color:#c8e6c9;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace}
-#hud{display:flex;justify-content:space-between;padding:8px 14px;background:#111a22;color:#b388ff;border-bottom:1px solid #223}
-#bar{height:4px;background:#223}#bar i{display:block;height:100%;background:#b388ff;width:0;transition:width .4s}
-main{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;height:calc(100vh - 60px)}
-@media(max-width:800px){main{grid-template-columns:1fr;height:auto}}
-section{background:#0e151c;border:1px solid #223;border-radius:6px;display:flex;flex-direction:column;min-height:300px}
-#out{flex:1;overflow:auto;padding:10px;max-height:60vh}
-#out div{white-space:pre-wrap;margin-bottom:3px}
-.h{color:#b388ff;font-weight:bold}.d{color:#6b7f8c}.ok{color:#69f0ae}.er{color:#ff5252}.u{color:#ffd54f}
-textarea{width:100%;height:150px;background:#070a0e;color:#e0e0e0;border:0;border-top:1px solid #223;padding:8px;font:inherit;resize:vertical}
-.row{display:flex;border-top:1px solid #223}.row span{padding:6px 0 6px 10px;color:#69f0ae}
-#in{flex:1;background:none;border:0;color:#fff;font:inherit;padding:6px;outline:0}
-button{background:#b388ff;color:#000;border:0;padding:6px 10px;font:inherit;cursor:pointer}
-#pvh{padding:6px 10px;color:#6b7f8c;border-bottom:1px solid #223}
-iframe{flex:1;width:100%;min-height:300px;border:0;background:#fff;border-radius:0 0 6px 6px}
-</style></head><body>
-<div id="hud"><b>CSS QUEST</b><span id="lv"></span><span id="sc"></span></div><div id="bar"><i id="bi"></i></div>
-<main>
-<section><div id="out"></div><textarea id="ta" spellcheck="false" hidden></textarea>
-<div class="row"><span>$</span><input id="in" autocomplete="off" placeholder="digite sua resposta e pressione Enter"><button id="run" hidden>Executar</button></div></section>
-<section><div id="pvh">▸ prévia visual</div><iframe id="pv"></iframe></section>
-</main>
-<script>
-const $=id=>document.getElementById(id),px=parseFloat,rgb=s=>(s.match(/\d+/g)||[]).map(Number);
-const Q=(t,q,o,a,e,d)=>({t,q,o,a,e,d});
-const L=[
-Q("O que é CSS?","Para que serve o CSS e qual a diferença para o HTML?",["CSS cria a lógica e os cálculos da página","HTML define a estrutura; CSS define a aparência (cores, tamanhos, layout)","CSS e HTML fazem exatamente a mesma coisa"],1,"HTML = estrutura/conteúdo. CSS = estilo e aparência."),
-Q("Formas de aplicar CSS","Quais as 3 formas de aplicar CSS?",["Inline (atributo style), interno (<style>) e externo (<link> para .css)","Local, global e remota","Inline, JavaScript e PHP"],0,"Inline no elemento, interno na tag <style>, externo em arquivo .css."),
-Q("Seletores","Para <h1 id=titulo> e <p class=destaque>: como selecionar por id, por class e todos os p?",["titulo, destaque, *p","#titulo, .destaque, p","*titulo, #destaque, .p"],1,"# para id, . para class, nome da tag para todos os elementos.","<style>#titulo{color:red}.destaque{color:green}p{font-style:italic}</style><h1 id=titulo>Minha página</h1><p class=destaque>Primeiro parágrafo</p><p>Segundo parágrafo</p>"),
-Q("Propriedades e valores","Em p{color:blue; font-size:18px; background-color:lightgray} o que cada propriedade altera?",["color = fundo, font-size = borda, background-color = texto","color = cor do texto (blue), font-size = tamanho da fonte (18px), background-color = fundo (lightgray)","Todas alteram apenas a cor"],1,"Propriedade: o que muda. Valor: como muda.","<style>p{color:blue;font-size:18px;background-color:lightgray}</style><p>Texto de exemplo</p>"),
-Q("Box Model","Qual a diferença entre espaçamento interno e externo?",["padding = interno (conteúdo↔borda); margin = externo (fora da borda)","padding = externo; margin = interno","São a mesma coisa"],0,"margin afasta de outros elementos; padding afasta o conteúdo da borda; border é a linha; width é a largura.","<style>.b{margin:20px;padding:20px;border:3px solid purple;width:150px;background:#ddd}</style><div class=b>conteúdo</div>"),
-Q("Unidades","Qual a diferença entre px, %, em e rem?",["em = fonte da raiz; rem = fonte do pai","Todas são fixas","px é fixo; % é relativo ao pai; em ao tamanho da fonte do elemento; rem ao da raiz"],2,"Ex.: width:50% com font-size:1.2rem.","<style>div{width:50%;background:#ccc;font-size:2em}</style><div>50% do pai, 2em</div>"),
-Q("Classes e IDs","Qual a diferença entre class e id?",["id é reutilizável; class é única","class é reutilizável (.nome); id é único na página (#nome)","Ambos usam @"],1,"Class pode repetir; id deve ser único.","<style>.a{color:green}#u{color:red}</style><p class=a>class</p><p class=a>class de novo</p><p id=u>id (único)</p>"),
-Q("Cascata e especificidade","<p class=texto id=mensagem> com regras p{blue}, .texto{green}, #mensagem{red}. Qual a cor final?",["Verde","Azul","Vermelho (id > class > elemento)"],2,"O id tem maior especificidade, então vence.","<style>p{color:blue}.texto{color:green}#mensagem{color:red}</style><p class=texto id=mensagem>Olá, mundo!</p>"),
-Q("Flexbox","display:flex + justify-content:center + align-items:center. Qual a diferença dos dois últimos?",["justify-content centra no eixo principal (horizontal); align-items no eixo cruzado (vertical)","Ambos centram só na horizontal","justify-content centra na vertical sempre"],0,"display:flex ativa o flexbox; os dois comandos centralizam em eixos diferentes.","<style>.c{display:flex;justify-content:center;align-items:center;height:250px;background:#ddd}.c div{background:purple;color:#fff;padding:10px}</style><div class=c><div>Centro</div></div>"),
-Q("Pseudo-classes","O que faz button:hover?",["Aplica o estilo quando o botão é clicado","Aplica o estilo quando a página carrega","Aplica o estilo (azul-escuro) quando o mouse está sobre o botão"],2,":hover = estado em que o mouse está sobre o elemento.","<style>button{background:blue;color:#fff;border:0;padding:12px 20px}button:hover{background:darkblue}</style><button>Passe o mouse</button>"),
-Q("Pseudo-elementos","O que h2::after com content:'' faz?",["Apaga o h2","Cria um elemento virtual após o h2; content é obrigatório para existir; resulta numa linha roxa de 100×3px","Cria a linha à esquerda do h2 e content é opcional"],1,"::after insere conteúdo virtual; sem content ele não aparece.","<style>h2::after{content:'';display:block;width:100px;height:3px;background:purple}</style><h2>Título</h2>"),
-Q("Posicionamento","Qual descrição está correta?",["fixed é relativo ao pai e absolute à janela","Todos se comportam igual","static = normal; relative = desloca da própria posição; absolute = relativo ao ancestral posicionado; fixed = preso à janela; sticky = cola ao rolar"],2,"Usos: fixed em cabeçalhos, sticky em títulos de seção, absolute em selos/ícones.","<style>div{height:130px;overflow:auto;background:#eee}h3{position:sticky;top:0;background:purple;color:#fff;margin:0}</style><div><h3>sticky: role aqui</h3><p>linha<br>linha<br>linha<br>linha<br>linha<br>linha<br>linha<br>linha<br>linha</p></div>"),
-Q("Bordas e fundos","border-top, border-radius e background:linear-gradient podem ser usados juntos?",["Sim: borda superior, cantos arredondados e degradê convivem no mesmo elemento","Não, o gradient cancela a borda","border-radius muda a cor da borda"],0,"Cada linha controla uma coisa diferente.","<style>body{background:#333}.caixa{border-top:2px solid white;border-radius:8px;background:linear-gradient(to right,purple,black);color:#fff;padding:30px}</style><div class=caixa>Caixa</div>"),
-Q("Responsividade","O que faz @media(max-width:500px){.card{width:100%}}?",["Só vale na impressão","Mantém o card com 600px sempre","Página se adapta à tela; com tela ≤500px o card passa a 100% de largura"],2,"@media aplica regras condicionais ao tamanho da tela.","<style>.card{width:600px;background:#ccc;padding:10px}@media(max-width:500px){.card{width:100%;background:purple;color:#fff}}</style><div class=card>Fica roxo se a prévia tiver ≤500px</div>"),
-{t:"Prática: seletores",q:"Estilize o HTML: h1 pelo id em vermelho, o parágrafo pela class em verde e todos os p em itálico.",s:"/* use #id, .class e o nome da tag */\n",h:"<h1 id=titulo>Minha página</h1><p class=destaque>Primeiro parágrafo</p><p>Segundo parágrafo</p>",k:"#titulo{color:red} .destaque{color:green} p{font-style:italic}",e:"# seleciona id, . seleciona class e o nome da tag seleciona todos os elementos.",
-c:(d,css)=>{const h=getComputedStyle(d.querySelector('h1')),a=getComputedStyle(d.querySelector('.destaque')),b=getComputedStyle(d.querySelectorAll('p')[1]),r=rgb(h.color),g=rgb(a.color);return[["h1 vermelho usando #titulo",/#titulo/.test(css)&&r[0]>200&&r[1]<80],["parágrafo verde usando .destaque",/\.destaque/.test(css)&&g[1]>100&&g[0]<80],["todos os p em itálico",a.fontStyle=='italic'&&b.fontStyle=='italic']]}},
-{t:"Prática: propriedades e valores",q:"Faça o parágrafo ter texto azul, fonte de 18px e fundo cinza-claro.",s:"p{\n  \n}",h:"<p>Texto de exemplo</p>",k:"color:blue; font-size:18px; background-color:lightgray;",e:"color muda o texto, font-size o tamanho e background-color o fundo.",
-c:d=>{const s=getComputedStyle(d.querySelector('p')),c=rgb(s.color),b=rgb(s.backgroundColor);return[["color: blue",c[2]>200&&c[0]<50&&c[1]<50],["font-size: 18px",s.fontSize=='18px'],["background-color: lightgray",s.backgroundColor!='rgba(0, 0, 0, 0)'&&b.slice(0,3).every(v=>v>180)]]}},
-{t:"Prática: box model",q:"Na .caixa use margin 20px, padding 20px, borda de 3px sólida roxa e largura de 150px.",s:".caixa{\n  background:#eee;\n}",h:"<div class=caixa>conteúdo</div>",k:"margin:20px; padding:20px; border:3px solid purple; width:150px;",e:"margin é o espaço externo, padding o interno, border a linha e width a largura do conteúdo.",
-c:d=>{const s=getComputedStyle(d.querySelector('.caixa'));return[["margin 20px",s.marginTop=='20px'],["padding 20px",s.paddingTop=='20px'],["border 3px solid",s.borderTopWidth=='3px'&&s.borderTopStyle=='solid'],["width 150px",s.width=='150px']]}},
-{t:"Prática: cascata",q:"O texto está azul e verde ao mesmo tempo nas regras. Faça ficar vermelho usando o seletor de maior especificidade.",s:"p{color:blue}\n.texto{color:green}\n/* escreva a regra vencedora */\n",h:"<p class=texto id=mensagem>Olá, mundo!</p>",k:"#mensagem{color:red;}",e:"id vence class, que vence elemento.",
-c:(d,css)=>{const c=rgb(getComputedStyle(d.querySelector('p')).color);return[["texto vermelho",c[0]>200&&c[1]<80&&c[2]<80],["usou o seletor #mensagem",/#mensagem/.test(css)]]}},
-{t:"Prática: flexbox",q:"Coloque as 3 caixas na mesma linha, uma em cada ponta e a do meio no centro (espaço entre elas), todas centralizadas na vertical.",s:".linha{\n  height:150px;\n  background:lightgray;\n}\n.b{background:purple;color:white;padding:10px}",h:"<div class=linha><div class=b>1</div><div class=b>2</div><div class=b>3</div></div>",k:".linha{display:flex; justify-content:space-between; align-items:center;}",e:"justify-content age no eixo principal e align-items no eixo cruzado.",
-c:d=>{const a=d.querySelector('.linha'),r=a.getBoundingClientRect(),b=[...a.children].map(x=>x.getBoundingClientRect());return[["display:flex",getComputedStyle(a).display=='flex'],["caixas na mesma linha",b.every(x=>Math.abs(x.top-b[0].top)<2)&&b[0].left<b[1].left],["espalhadas (space-between)",Math.abs(b[0].left-r.left)<2&&Math.abs(b[2].right-r.right)<2],["centralizadas na vertical",b[0].height<r.height-10&&Math.abs((b[0].top+b[0].height/2)-(r.top+r.height/2))<2]]}},
-{t:"Prática: pseudo-elemento",q:"Use ::after para criar uma linha roxa de 100px de largura e 3px de altura abaixo do título.",s:"h2::after{\n  \n}",h:"<h2>Título</h2>",k:"content:''; display:block; width:100px; height:3px; background-color:purple;",e:"::after cria um elemento virtual; sem content ele não aparece.",
-c:d=>{const s=getComputedStyle(d.querySelector('h2'),'::after');return[["content definido",s.content!='none'&&s.content!='normal'],["display:block",s.display=='block'],["100px × 3px",s.width=='100px'&&s.height=='3px'],["fundo roxo",s.backgroundColor=='rgb(128, 0, 128)']]}},
-{t:"Prática: posicionamento",q:"Posicione o selo NOVO no canto superior direito da caixa usando position.",s:".caixa{\n  width:300px;\n  height:150px;\n  background:lightgray;\n}\n.selo{\n  background:purple;\n  color:white;\n  padding:4px 8px;\n}",h:"<div class=caixa><span class=selo>NOVO</span></div>",k:".caixa{position:relative} .selo{position:absolute; top:0; right:0;}",e:"absolute posiciona em relação ao ancestral com position diferente de static.",
-c:d=>{const a=d.querySelector('.caixa'),s=d.querySelector('.selo'),r=a.getBoundingClientRect(),q=s.getBoundingClientRect();return[["caixa com position:relative",getComputedStyle(a).position=='relative'],["selo com position:absolute",getComputedStyle(s).position=='absolute'],["selo no canto superior direito",Math.abs(q.right-r.right)<2&&Math.abs(q.top-r.top)<2]]}},
-{t:"Prática: responsividade",q:"A prévia simula um celular (400px). Escreva uma @media query: com tela de até 500px, o .card deve ter largura 100%.",w:"400px",s:".card{\n  width:600px;\n  background:lightgray;\n  padding:10px;\n}",h:"<div class=card>Estreite a janela!</div>",k:"@media (max-width:500px){ .card{width:100%;} }",e:"@media aplica regras só quando a condição de tela é verdadeira.",
-c:(d,css)=>{const s=getComputedStyle(d.querySelector('.card'));return[["@media (max-width:500px)",/@media\s*\(\s*max-width\s*:\s*500px\s*\)/.test(css)],["card com width:100% dentro da media",/@media[^{]*\{[^}]*\.card\s*\{[^}]*width\s*:\s*100%/.test(css)],["efeito visível na prévia",s.width!='600px']]}},
-{t:"Centralizar um conteúdo",q:"Q15: .container com largura de 80% do pai, centralizada horizontalmente, fundo cinza-claro, padding 20px e texto centralizado.",s:".container{\n  \n}",h:"<div class=container><h1>Bem-vindo!</h1><p>Esta é minha página.</p></div>",k:"width:80%; margin:0 auto; background:lightgray; padding:20px; text-align:center;",e:"width define largura, margin:0 auto centraliza a caixa, padding o espaço interno, text-align centraliza o texto.",
-c:d=>{const c=d.querySelector('.container'),s=getComputedStyle(c);return[["largura = 80% do pai",Math.abs(c.offsetWidth/c.parentElement.clientWidth-.8)<.02],["caixa centralizada (margens iguais)",px(s.marginLeft)>0&&Math.abs(px(s.marginLeft)-px(s.marginRight))<2],["fundo cinza-claro",rgb(s.backgroundColor).length>=3&&rgb(s.backgroundColor).slice(0,3).every(v=>v>180)&&s.backgroundColor!='rgba(0, 0, 0, 0)'],["padding 20px",s.paddingTop=='20px'&&s.paddingLeft=='20px'],["texto centralizado",s.textAlign=='center']]}},
-{t:"Botão interativo",q:"Q16: botão azul com texto branco, sem borda, cantos arredondados, padding adequado e mudança de cor no :hover (sem JavaScript).",s:"button{\n  \n}\nbutton:hover{\n  \n}",h:"<button>Clique aqui</button>",k:"background:blue; color:white; border:none; border-radius:8px; padding:10px 20px; e em :hover outro background.",e:"A cor muda com a pseudo-classe :hover, sem JS.",
-c:(d,css)=>{const s=getComputedStyle(d.querySelector('button')),b=rgb(s.backgroundColor);return[["fundo azul",b[2]>150&&b[0]<100],["texto branco",s.color=='rgb(255, 255, 255)'],["sem borda",s.borderTopWidth=='0px'||s.borderTopStyle=='none'],["cantos arredondados",px(s.borderTopLeftRadius)>0],["padding > 0",px(s.paddingLeft)>0],["background dentro de button:hover",/button:hover\s*\{[^}]*background/.test(css)]]}},
-{t:"Divisão visual",q:"Q17: adicione borda superior de 1px, sólida e cinza-clara à segunda seção (.conteudo).",s:".conteudo{\n  \n}",h:"<section class=introducao><h2>Introdução</h2></section><section class=conteudo><h2>Conteúdo</h2></section>",k:"border-top: 1px solid lightgray;",e:"border-top atua só no lado superior, ideal para separar seções.",
-c:d=>{const s=getComputedStyle(d.querySelector('.conteudo'));return[["largura 1px",s.borderTopWidth=='1px'],["estilo sólido",s.borderTopStyle=='solid'],["cor cinza-clara",rgb(s.borderTopColor).slice(0,3).every(v=>v>170)]]}},
-{t:"Degradê",q:"Q18: faixa .faixa com degradê de roxo para preto, altura 80px e largura total do pai.",s:".faixa{\n  \n}",h:"<div class=faixa></div>",k:"height:80px; width:100%; background:linear-gradient(to right, purple, black);",e:"linear-gradient gera uma imagem de fundo com transição de cores; background-color é uma cor única.",
-c:d=>{const f=d.querySelector('.faixa'),s=getComputedStyle(f);return[["altura 80px",s.height=='80px'],["largura total",f.offsetWidth==f.parentElement.clientWidth],["usa linear-gradient",s.backgroundImage.includes('linear-gradient')],["roxo e preto",s.backgroundImage.includes('128, 0, 128')&&s.backgroundImage.includes('rgb(0, 0, 0)')]]}},
-{t:"Cabeçalho fixo",q:"Q19: fixe .cabecalho no topo, ocupando toda a largura, e evite que cubra o início do conteúdo (main).",s:".cabecalho{\n  \n}\nmain{\n  \n}",h:"<header class=cabecalho><h1>Minha página</h1></header><main style='height:1500px'><p>Conteúdo...</p></main>",k:"position:fixed; top:0; left:0; width:100%; e padding-top no main.",e:"fixed tira o cabeçalho do fluxo, por isso o conteúdo precisa de padding-top.",
-c:d=>{const hd=d.querySelector('.cabecalho'),s=getComputedStyle(hd);return[["position: fixed",s.position=='fixed'],["top: 0",s.top=='0px'],["largura total",hd.offsetWidth>=d.documentElement.clientWidth-1],["conteúdo não fica escondido",d.querySelector('main').getBoundingClientRect().top>=hd.offsetHeight-1]]}},
-{t:"Investigar o problema",q:"Q20: o quadrado roxo deve ficar centralizado na horizontal E na vertical dentro de .pai. Use Flexbox.",s:".pai{\n  width:300px;\n  height:200px;\n  background-color:lightgray;\n}\n.filho{\n  width:100px;\n  height:50px;\n  background-color:purple;\n  margin:auto;\n}",h:"<div class=pai><div class=filho>Conteúdo</div></div>",k:".pai{display:flex; justify-content:center; align-items:center;}",e:"margin:auto não centraliza na vertical em blocos normais; flex com justify/align resolve. Verifique visualmente na prévia!",
-c:d=>{const a=d.querySelector('.pai').getBoundingClientRect(),b=d.querySelector('.filho').getBoundingClientRect();return[["pai usa display:flex",getComputedStyle(d.querySelector('.pai')).display=='flex'],["centralizado na horizontal",Math.abs((a.left+a.width/2)-(b.left+b.width/2))<2],["centralizado na vertical",Math.abs((a.top+a.height/2)-(b.top+b.height/2))<2]]}}
-];
-{const a=L.filter(x=>x.o),b=L.filter(x=>!x.o);L.length=0;while(a.length||b.length){if(a.length)L.push(a.shift());if(b.length)L.push(b.shift())}}
-const DET={
-"Prática: seletores":"🎯 OBJETIVO: aplicar 3 estilos diferentes escolhendo o elemento certo.\n\nPASSO A PASSO:\n 1) Selecione o h1 pelo ID dele (titulo) e deixe o texto vermelho.\n 2) Selecione o primeiro parágrafo pela CLASS dele (destaque) e deixe o texto verde.\n 3) Selecione TODOS os parágrafos pelo nome da tag e deixe o texto em itálico.",
-"Prática: propriedades e valores":"🎯 OBJETIVO: alterar a aparência do parágrafo.\n\nPASSO A PASSO (dentro de p { ... }):\n 1) Deixe a cor do texto azul (blue).\n 2) Deixe o tamanho da fonte em 18px.\n 3) Deixe a cor de fundo cinza-claro (lightgray).",
-"Prática: box model":"🎯 OBJETIVO: montar o modelo de caixa da .caixa.\n\nPASSO A PASSO (dentro da regra .caixa que já existe):\n 1) Espaço EXTERNO de 20px ao redor da caixa.\n 2) Espaço INTERNO de 20px entre o conteúdo e a borda.\n 3) Borda de 3px, contínua (solid) e roxa (purple).\n 4) Largura de 150px.",
-"Prática: cascata":"🎯 OBJETIVO: vencer um conflito de regras.\n\nSITUAÇÃO: o parágrafo recebe a regra de p (azul) e a de .texto (verde) ao mesmo tempo. Ele também tem um id (mensagem).\n\nPASSO A PASSO:\n 1) Escreva uma nova regra que selecione o parágrafo pelo ID (mensagem).\n 2) Dentro dela, deixe o texto vermelho.\n 3) Veja na prévia qual regra venceu e explique porquê.",
-"Prática: flexbox":"🎯 OBJETIVO: organizar 3 caixas lado a lado com Flexbox.\n\nPASSO A PASSO (na regra .linha, que é o container):\n 1) Ative o flexbox nesse container.\n 2) No eixo horizontal: caixa 1 na ponta esquerda, caixa 3 na ponta direita e caixa 2 no meio, com o espaço sobrando ENTRE elas.\n 3) No eixo vertical: alinhe as caixas no centro (a .linha tem 150px de altura).",
-"Prática: pseudo-elemento":"🎯 OBJETIVO: desenhar uma linha decorativa abaixo do título sem mexer no HTML.\n\nPASSO A PASSO (dentro de h2::after):\n 1) Defina o conteúdo do pseudo-elemento, mesmo que vazio (aspas sem nada dentro).\n 2) Faça ele ocupar a linha inteira, ficando abaixo do texto (display em bloco).\n 3) Largura de 100px e altura de 3px.\n 4) Fundo roxo (purple).",
-"Prática: posicionamento":"🎯 OBJETIVO: colocar o selo NOVO no canto superior direito da caixa cinza.\n\nPASSO A PASSO:\n 1) Na regra .caixa: torne-a a referência de posição (position relative).\n 2) Na regra .selo: tire-o do fluxo normal (position absolute).\n 3) Ainda no .selo: encoste-o no topo (0) e na direita (0) da caixa.",
-"Prática: responsividade":"🎯 OBJETIVO: fazer o card se adaptar a telas pequenas.\n\nSITUAÇÃO: a prévia ao lado simula um celular de 400px, mas o .card tem 600px e estoura a tela.\n\nPASSO A PASSO (abaixo da regra .card):\n 1) Abra uma media query para telas com largura máxima de 500px.\n 2) Dentro dela, escreva a regra .card.\n 3) Nessa regra, defina largura de 100%.",
-"Centralizar um conteúdo":"🎯 OBJETIVO: criar uma caixa centralizada com o conteúdo dentro.\n\nPASSO A PASSO (regra .container):\n 1) Largura de 80% do elemento pai.\n 2) Centralize a caixa na horizontal (margem 0 em cima e embaixo, automática nos lados).\n 3) Fundo cinza-claro.\n 4) Espaçamento interno de 20px.\n 5) Texto centralizado dentro da caixa.",
-"Botão interativo":"🎯 OBJETIVO: criar um botão estilizado que muda de cor ao passar o mouse, sem JavaScript.\n\nPASSO A PASSO:\n 1) Na regra button: fundo azul e texto branco.\n 2) Remova a borda padrão.\n 3) Arredonde os cantos.\n 4) Dê um espaçamento interno (padding) confortável.\n 5) Na regra button:hover: troque a cor de fundo por outra cor.",
-"Divisão visual":"🎯 OBJETIVO: separar duas seções com uma linha.\n\nPASSO A PASSO (regra .conteudo, a segunda seção):\n 1) Crie uma borda apenas na parte de cima.\n 2) Espessura de 1px, estilo contínuo (solid) e cor cinza-clara.",
-"Degradê":"🎯 OBJETIVO: criar uma faixa com degradê de roxo para preto usando só CSS.\n\nPASSO A PASSO (regra .faixa):\n 1) Altura de 80px.\n 2) Largura de 100% do elemento pai.\n 3) Fundo em degradê linear: roxo na esquerda, preto na direita.",
-"Cabeçalho fixo":"🎯 OBJETIVO: manter o cabeçalho sempre visível ao rolar a página.\n\nSITUAÇÃO: o main tem 1500px de altura, então a página rola.\n\nPASSO A PASSO:\n 1) Na regra .cabecalho: deixe-o fixo na janela (position fixed).\n 2) Encoste-o no topo (0) e na esquerda (0).\n 3) Faça ocupar 100% da largura.\n 4) (Opcional) Dê um fundo colorido para não ficar transparente.\n 5) Na regra main: crie espaço no topo (padding-top) para o conteúdo não ficar escondido embaixo do cabeçalho.",
-"Investigar o problema":"🎯 OBJETIVO: corrigir o código para o quadrado roxo ficar no centro exato do retângulo cinza.\n\nPROBLEMA: margin:auto só centraliza na horizontal; na vertical não funciona em um bloco comum.\n\nPASSO A PASSO (na regra .pai):\n 1) Ative o Flexbox.\n 2) Centralize os filhos no eixo horizontal.\n 3) Centralize os filhos no eixo vertical."};
-const H={"O que é CSS?":"Pense em uma casa: paredes e tijolos são uma coisa; pintura e decoração são outra.","Formas de aplicar CSS":"Há um jeito dentro da própria tag, um dentro do documento e um em arquivo separado.","Seletores":"Cada símbolo tem um significado: um representa id, outro representa class, e o nome puro representa a tag.","Propriedades e valores":"Releia cada nome em inglês e pense no que ele significa.","Box Model":"Imagine a moldura de um quadro: o que fica entre a foto e a moldura? E entre a moldura e a parede?","Unidades":"Algumas unidades olham para outro elemento antes de decidir o tamanho; outras não.","Classes e IDs":"Pense em CPF: duas pessoas podem ter o mesmo? E várias pessoas podem estar na mesma turma?","Cascata e especificidade":"Quanto mais específico o seletor, mais força ele tem. Qual deles aponta para um único elemento?","Flexbox":"Existe um eixo que segue a direção dos itens e outro que cruza esse caminho.","Pseudo-classes":"O nome da pseudo-classe descreve, em inglês, o que o mouse está fazendo.","Pseudo-elementos":"Pense em 'depois' em inglês e no que precisa existir para algo aparecer.","Posicionamento":"Cada valor responde: em relação a quê o elemento se move?","Bordas e fundos":"Cada linha cuida de uma parte diferente do elemento. Elas se atrapalham?","Responsividade":"Uma regra só vale quando a condição sobre a tela é verdadeira.",
-"Prática: seletores":"Um símbolo marca o id, outro marca a class. A tag não leva símbolo.","Prática: propriedades e valores":"Os nomes são em inglês: cor do texto, tamanho da fonte e cor de fundo.","Prática: box model":"Cada espaço tem um nome diferente. A borda pode ser resumida em uma linha só.","Prática: cascata":"Qual símbolo aponta para um único elemento e tem mais força que a class?","Prática: flexbox":"Primeiro ative o modo flex. Depois há duas propriedades de alinhamento, uma para cada eixo; um dos valores começa com 'space-'.","Prática: pseudo-elemento":"Sem conteúdo o elemento virtual não nasce. Para ficar abaixo do texto, ele precisa se comportar como bloco.","Prática: posicionamento":"Para o absolute funcionar, o elemento pai precisa ser uma referência. Depois, use as propriedades de direção.","Prática: responsividade":"Comece com @ e a palavra que dá nome à regra; a condição fica entre parênteses.","Centralizar um conteúdo":"Para centralizar um bloco, as margens dos lados precisam ser iguais e automáticas.","Botão interativo":"O hover é uma regra separada, com dois-pontos junto ao seletor. O botão traz uma borda padrão que precisa sair.","Divisão visual":"Existem propriedades de borda para cada lado: top, right, bottom e left.","Degradê":"É uma função, não uma cor simples. O nome dela descreve o tipo de degradê.","Cabeçalho fixo":"Fixo na janela é diferente de preso ao documento. Como ele sai do fluxo, o conteúdo sobe por baixo dele.","Investigar o problema":"A solução vai no elemento pai, não no filho. São 3 declarações no total."};
-L.forEach(x=>{if(!x.o&&DET[x.t])x.q=DET[x.t];x.k=H[x.t]||x.k});
-let i=0,score=0,hint=false,wait=false;const out=$('out'),inp=$('in'),ta=$('ta'),pv=$('pv');
-const p=(t,c='')=>{const e=document.createElement('div');e.className=c;e.textContent=t;out.appendChild(e);out.scrollTop=1e9};
-const doc=(css,q)=>`<style>body{font-family:sans-serif}${css}</style>${q.h}`;
-function hud(){$('lv').textContent=`Nível ${Math.min(i+1,L.length)}/${L.length}`;$('sc').textContent=`Pontos: ${score}`;$('bi').style.width=i/L.length*100+'%'}
-function start(){if(i>=L.length)return end();const q=L[i];hint=false;wait=false;pv.style.width=q.w||'';out.innerHTML='';hud();
-p(`[NÍVEL ${i+1}/${L.length}] ${q.t}`,'h');p(q.q);
-if(q.o){ta.hidden=true;$('run').hidden=true;q.o.forEach((o,k)=>p(`  ${'abc'[k]}) ${o}`));p('Digite a, b ou c e Enter.','d');pv.srcdoc=''}
-else{ta.hidden=false;$('run').hidden=false;ta.value=q.s;pv.srcdoc=doc(q.s,q);p('\n📄 HTML da página (não pode ser alterado):','d');p(q.h.replace(/></g,'>\n<'),'u')}
-inp.focus()}
-function win(q){score+=hint?5:10;hud();p('✔ '+q.e,'ok');p('Enter para o próximo nível ▸','d');wait=true}
-function run(){const q=L[i];if(q.o||wait)return;pv.srcdoc=doc(ta.value,q);setTimeout(()=>{const r=q.c(pv.contentDocument,ta.value);r.forEach(([l,o])=>{if(o)p('✔ '+l,'ok')});const n=r.filter(x=>!x[1]).length;if(!n)win(q);else{p(`✘ ${n} requisito(s) ainda não atendido(s). Releia o passo a passo.`,'er');p('💡 '+q.k,'d')}},250)}
-function end(){hud();out.innerHTML='';ta.hidden=true;$('run').hidden=true;p('🏁 FIM DE JOGO','h');p(`Pontuação final: ${score}/${L.length*10}`,'ok');p(score>=L.length*8.5?'Mestre do CSS!':score>=L.length*5?'Muito bem, continue praticando!':'Revise os conceitos e tente de novo (recarregue a página).','u')}
-inp.addEventListener('keydown',e=>{if(e.key!='Enter')return;const v=inp.value.trim().toLowerCase();inp.value='';const q=L[i];if(!q)return;
-if(wait&&!v){i++;return start()}
-p('$ '+v,'u');
-if(v=='pular'){i++;return start()}
-if(v=='dica'){hint=true;return p('💡 Dica: '+q.k,'d')}
-if(q.o){const k='abc'.indexOf(v);if(v.length!=1||k<0)return p('Use a, b ou c.','d');if(wait)return;
-if(k==q.a){pv.srcdoc=q.d?`<style>body{font-family:sans-serif}</style>${q.d}`:'';win(q)}else{p('✘ Resposta incorreta. Tente de novo.','er');p('💡 '+q.k,'d')}}
-else if(v=='rodar'||v=='executar')run()});
-$('run').onclick=run;ta.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key=='Enter')run()});
-let tm;ta.addEventListener('input',()=>{clearTimeout(tm);tm=setTimeout(()=>{const q=L[i];if(q&&!q.o)pv.srcdoc=doc(ta.value,q)},300)});
-start();
-</script></body></html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CSS Quest — Terminal</title>
+
+  <style>
+    /* ============================================================
+       BASE
+       ============================================================ */
+    :root {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #0b0f14;
+      color: #c8e6c9;
+      font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    /* ============================================================
+       BARRA SUPERIOR (HUD) E BARRA DE PROGRESSO
+       ============================================================ */
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: #111a22;
+      color: #b388ff;
+      border-bottom: 1px solid #223;
+    }
+
+    #progress-track {
+      height: 4px;
+      background: #223;
+    }
+
+    #progress-fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: #b388ff;
+      transition: width .4s;
+    }
+
+    /* ============================================================
+       LAYOUT PRINCIPAL: terminal (esquerda) | prévia (direita)
+       ============================================================ */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 10px;
+      height: calc(100vh - 60px);
+    }
+
+    @media (max-width: 800px) {
+      main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    section {
+      display: flex;
+      flex-direction: column;
+      min-height: 300px;
+      background: #0e151c;
+      border: 1px solid #223;
+      border-radius: 6px;
+    }
+
+    /* ============================================================
+       TERMINAL: saída, editor de CSS e linha de comando
+       ============================================================ */
+    #output {
+      flex: 1;
+      overflow: auto;
+      max-height: 60vh;
+      padding: 10px;
+    }
+
+    #output div {
+      white-space: pre-wrap;
+      margin-bottom: 3px;
+    }
+
+    /* Cores das mensagens do terminal */
+    .msg-title   { color: #b388ff; font-weight: bold; }
+    .msg-dim     { color: #6b7f8c; }
+    .msg-ok      { color: #69f0ae; }
+    .msg-error   { color: #ff5252; }
+    .msg-user    { color: #ffd54f; }
+
+    #editor {
+      width: 100%;
+      height: 150px;
+      padding: 8px;
+      background: #070a0e;
+      color: #e0e0e0;
+      border: 0;
+      border-top: 1px solid #223;
+      font: inherit;
+      resize: vertical;
+    }
+
+    .prompt-row {
+      display: flex;
+      border-top: 1px solid #223;
+    }
+
+    .prompt-row span {
+      padding: 6px 0 6px 10px;
+      color: #69f0ae;
+    }
+
+    #command-input {
+      flex: 1;
+      padding: 6px;
+      background: none;
+      border: 0;
+      outline: 0;
+      color: #fff;
+      font: inherit;
+    }
+
+    button {
+      padding: 6px 10px;
+      background: #b388ff;
+      color: #000;
+      border: 0;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    /* ============================================================
+       PRÉVIA VISUAL
+       ============================================================ */
+    #preview-header {
+      padding: 6px 10px;
+      color: #6b7f8c;
+      border-bottom: 1px solid #223;
+    }
+
+    iframe {
+      flex: 1;
+      width: 100%;
+      min-height: 300px;
+      border: 0;
+      border-radius: 0 0 6px 6px;
+      background: #fff;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Barra superior: título, nível atual e pontuação -->
+  <div id="hud">
+    <b>CSS QUEST</b>
+    <span id="level-label"></span>
+    <span id="score-label"></span>
+  </div>
+  <div id="progress-track"><i id="progress-fill"></i></div>
+
+  <main>
+    <!-- Terminal: enunciado, editor de CSS e linha de comando -->
+    <section>
+      <div id="output"></div>
+      <textarea id="editor" spellcheck="false" hidden></textarea>
+      <div class="prompt-row">
+        <span>$</span>
+        <input id="command-input" autocomplete="off" placeholder="digite sua resposta e pressione Enter">
+        <button id="run-button" hidden>Executar</button>
+      </div>
+    </section>
+
+    <!-- Prévia visual do HTML + CSS do aluno -->
+    <section>
+      <div id="preview-header">▸ prévia visual</div>
+      <iframe id="preview"></iframe>
+    </section>
+  </main>
+
+  <script>
+    /* ==============================================================
+       1. UTILITÁRIOS
+       ============================================================== */
+
+    const byId = id => document.getElementById(id);
+
+    /** Atalho para converter "18px" em 18. */
+    const toNumber = parseFloat;
+
+    /** Extrai [r, g, b, (a)] de uma string "rgb(...)"/"rgba(...)". */
+    const parseRgb = text => (text.match(/\d+/g) || []).map(Number);
+
+    /** Verifica se os 3 canais RGB são todos maiores que `min` (cor clara). */
+    const isLight = (color, min) => parseRgb(color).slice(0, 3).every(v => v > min);
+
+
+    /* ==============================================================
+       2. FÁBRICAS DE QUESTÕES
+
+       Tipo "quiz":     múltipla escolha (a, b ou c).
+       Tipo "practice": o aluno escreve CSS e o código valida o resultado.
+       ============================================================== */
+
+    /**
+     * Questão de múltipla escolha.
+     * @param title        Título do nível
+     * @param question     Enunciado
+     * @param options      3 alternativas (a, b, c)
+     * @param correct      Índice da alternativa certa (0, 1 ou 2)
+     * @param explanation  Explicação exibida ao acertar
+     * @param hint         Dica (comando "dica" ou ao errar)
+     * @param demo         (opcional) HTML+CSS mostrado na prévia ao acertar
+     */
+    function quiz({ title, question, options, correct, explanation, hint, demo }) {
+      return { title, question, options, correct, explanation, hint, demo };
+    }
+
+    /**
+     * Questão prática de CSS.
+     * @param title        Título do nível
+     * @param goal         Objetivo (primeira linha do enunciado)
+     * @param context      (opcional) Texto "SITUAÇÃO: ..." ou "PROBLEMA: ..."
+     * @param where        (opcional) Onde escrever, ex.: "regra .caixa"
+     * @param steps        Lista de passos do enunciado
+     * @param startCss     CSS inicial colocado no editor
+     * @param html         HTML da página (não editável)
+     * @param hint         Dica
+     * @param explanation  Explicação exibida ao acertar
+     * @param previewWidth (opcional) Largura do iframe, ex.: "400px"
+     * @param check        (doc, css) => [[descrição, passou?], ...]
+     */
+    function practice({ title, goal, context, where, steps, startCss, html, hint,
+                        explanation, previewWidth, check }) {
+      const question =
+        `🎯 OBJETIVO: ${goal}\n\n` +
+        (context ? `${context}\n\n` : '') +
+        `PASSO A PASSO${where ? ` (${where})` : ''}:\n` +
+        steps.map((step, n) => ` ${n + 1}) ${step}`).join('\n');
+
+      return { title, question, startCss, html, hint, explanation, previewWidth, check };
+    }
+
+    /** Uma questão é de múltipla escolha se tiver `options`. */
+    const isQuiz = q => Boolean(q.options);
+
+
+    /* ==============================================================
+       3. QUESTÕES DE MÚLTIPLA ESCOLHA
+       ============================================================== */
+
+    const QUIZ_QUESTIONS = [
+      quiz({
+        title: 'O que é CSS?',
+        question: 'Para que serve o CSS e qual a diferença para o HTML?',
+        options: [
+          'CSS cria a lógica e os cálculos da página',
+          'HTML define a estrutura; CSS define a aparência (cores, tamanhos, layout)',
+          'CSS e HTML fazem exatamente a mesma coisa',
+        ],
+        correct: 1,
+        explanation: 'HTML = estrutura/conteúdo. CSS = estilo e aparência.',
+        hint: 'Pense em uma casa: paredes e tijolos são uma coisa; pintura e decoração são outra.',
+      }),
+
+      quiz({
+        title: 'Formas de aplicar CSS',
+        question: 'Quais as 3 formas de aplicar CSS?',
+        options: [
+          'Inline (atributo style), interno (<style>) e externo (<link> para .css)',
+          'Local, global e remota',
+          'Inline, JavaScript e PHP',
+        ],
+        correct: 0,
+        explanation: 'Inline no elemento, interno na tag <style>, externo em arquivo .css.',
+        hint: 'Há um jeito dentro da própria tag, um dentro do documento e um em arquivo separado.',
+      }),
+
+      quiz({
+        title: 'Seletores',
+        question: 'Para <h1 id=titulo> e <p class=destaque>: como selecionar por id, por class e todos os p?',
+        options: [
+          'titulo, destaque, *p',
+          '#titulo, .destaque, p',
+          '*titulo, #destaque, .p',
+        ],
+        correct: 1,
+        explanation: '# para id, . para class, nome da tag para todos os elementos.',
+        hint: 'Cada símbolo tem um significado: um representa id, outro representa class, e o nome puro representa a tag.',
+        demo: `
+          <style>#titulo{color:red}.destaque{color:green}p{font-style:italic}</style>
+          <h1 id=titulo>Minha página</h1>
+          <p class=destaque>Primeiro parágrafo</p>
+          <p>Segundo parágrafo</p>`,
+      }),
+
+      quiz({
+        title: 'Propriedades e valores',
+        question: 'Em p{color:blue; font-size:18px; background-color:lightgray} o que cada propriedade altera?',
+        options: [
+          'color = fundo, font-size = borda, background-color = texto',
+          'color = cor do texto (blue), font-size = tamanho da fonte (18px), background-color = fundo (lightgray)',
+          'Todas alteram apenas a cor',
+        ],
+        correct: 1,
+        explanation: 'Propriedade: o que muda. Valor: como muda.',
+        hint: 'Releia cada nome em inglês e pense no que ele significa.',
+        demo: `
+          <style>p{color:blue;font-size:18px;background-color:lightgray}</style>
+          <p>Texto de exemplo</p>`,
+      }),
+
+      quiz({
+        title: 'Box Model',
+        question: 'Qual a diferença entre espaçamento interno e externo?',
+        options: [
+          'padding = interno (conteúdo↔borda); margin = externo (fora da borda)',
+          'padding = externo; margin = interno',
+          'São a mesma coisa',
+        ],
+        correct: 0,
+        explanation: 'margin afasta de outros elementos; padding afasta o conteúdo da borda; border é a linha; width é a largura.',
+        hint: 'Imagine a moldura de um quadro: o que fica entre a foto e a moldura? E entre a moldura e a parede?',
+        demo: `
+          <style>.b{margin:20px;padding:20px;border:3px solid purple;width:150px;background:#ddd}</style>
+          <div class=b>conteúdo</div>`,
+      }),
+
+      quiz({
+        title: 'Unidades',
+        question: 'Qual a diferença entre px, %, em e rem?',
+        options: [
+          'em = fonte da raiz; rem = fonte do pai',
+          'Todas são fixas',
+          'px é fixo; % é relativo ao pai; em ao tamanho da fonte do elemento; rem ao da raiz',
+        ],
+        correct: 2,
+        explanation: 'Ex.: width:50% com font-size:1.2rem.',
+        hint: 'Algumas unidades olham para outro elemento antes de decidir o tamanho; outras não.',
+        demo: `
+          <style>div{width:50%;background:#ccc;font-size:2em}</style>
+          <div>50% do pai, 2em</div>`,
+      }),
+
+      quiz({
+        title: 'Classes e IDs',
+        question: 'Qual a diferença entre class e id?',
+        options: [
+          'id é reutilizável; class é única',
+          'class é reutilizável (.nome); id é único na página (#nome)',
+          'Ambos usam @',
+        ],
+        correct: 1,
+        explanation: 'Class pode repetir; id deve ser único.',
+        hint: 'Pense em CPF: duas pessoas podem ter o mesmo? E várias pessoas podem estar na mesma turma?',
+        demo: `
+          <style>.a{color:green}#u{color:red}</style>
+          <p class=a>class</p>
+          <p class=a>class de novo</p>
+          <p id=u>id (único)</p>`,
+      }),
+
+      quiz({
+        title: 'Cascata e especificidade',
+        question: '<p class=texto id=mensagem> com regras p{blue}, .texto{green}, #mensagem{red}. Qual a cor final?',
+        options: [
+          'Verde',
+          'Azul',
+          'Vermelho (id > class > elemento)',
+        ],
+        correct: 2,
+        explanation: 'O id tem maior especificidade, então vence.',
+        hint: 'Quanto mais específico o seletor, mais força ele tem. Qual deles aponta para um único elemento?',
+        demo: `
+          <style>p{color:blue}.texto{color:green}#mensagem{color:red}</style>
+          <p class=texto id=mensagem>Olá, mundo!</p>`,
+      }),
+
+      quiz({
+        title: 'Flexbox',
+        question: 'display:flex + justify-content:center + align-items:center. Qual a diferença dos dois últimos?',
+        options: [
+          'justify-content centra no eixo principal (horizontal); align-items no eixo cruzado (vertical)',
+          'Ambos centram só na horizontal',
+          'justify-content centra na vertical sempre',
+        ],
+        correct: 0,
+        explanation: 'display:flex ativa o flexbox; os dois comandos centralizam em eixos diferentes.',
+        hint: 'Existe um eixo que segue a direção dos itens e outro que cruza esse caminho.',
+        demo: `
+          <style>
+            .c{display:flex;justify-content:center;align-items:center;height:250px;background:#ddd}
+            .c div{background:purple;color:#fff;padding:10px}
+          </style>
+          <div class=c><div>Centro</div></div>`,
+      }),
+
+      quiz({
+        title: 'Pseudo-classes',
+        question: 'O que faz button:hover?',
+        options: [
+          'Aplica o estilo quando o botão é clicado',
+          'Aplica o estilo quando a página carrega',
+          'Aplica o estilo quando o mouse está sobre o botão',
+        ],
+        correct: 2,
+        explanation: ':hover = estado em que o mouse está sobre o elemento.',
+        hint: 'O nome da pseudo-classe descreve, em inglês, o que o mouse está fazendo.',
+        demo: `
+          <style>
+            button{background:blue;color:#fff;border:0;padding:12px 20px}
+            button:hover{background:darkblue}
+          </style>
+          <button>Passe o mouse</button>`,
+      }),
+
+      quiz({
+        title: 'Pseudo-elementos',
+        question: "O que h2::after com content:'' faz?",
+        options: [
+          'Apaga o h2',
+          'Cria um elemento virtual após o h2; content é obrigatório para existir; resulta numa linha roxa de 100×3px',
+          'Cria a linha à esquerda do h2 e content é opcional',
+        ],
+        correct: 1,
+        explanation: '::after insere conteúdo virtual; sem content ele não aparece.',
+        hint: "Pense em 'depois' em inglês e no que precisa existir para algo aparecer.",
+        demo: `
+          <style>h2::after{content:'';display:block;width:100px;height:3px;background:purple}</style>
+          <h2>Título</h2>`,
+      }),
+
+      quiz({
+        title: 'Posicionamento',
+        question: 'Qual descrição está correta?',
+        options: [
+          'fixed é relativo ao pai e absolute à janela',
+          'Todos se comportam igual',
+          'static = normal; relative = desloca da própria posição; absolute = relativo ao ancestral posicionado; fixed = preso à janela; sticky = cola ao rolar',
+        ],
+        correct: 2,
+        explanation: 'Usos: fixed em cabeçalhos, sticky em títulos de seção, absolute em selos/ícones.',
+        hint: 'Cada valor responde: em relação a quê o elemento se move?',
+        demo: `
+          <style>
+            div{height:130px;overflow:auto;background:#eee}
+            h3{position:sticky;top:0;background:purple;color:#fff;margin:0}
+          </style>
+          <div>
+            <h3>sticky: role aqui</h3>
+            <p>linha<br>linha<br>linha<br>linha<br>linha<br>linha<br>linha<br>linha<br>linha</p>
+          </div>`,
+      }),
+
+      quiz({
+        title: 'Bordas e fundos',
+        question: 'border-top, border-radius e background:linear-gradient podem ser usados juntos?',
+        options: [
+          'Sim: borda superior, cantos arredondados e degradê convivem no mesmo elemento',
+          'Não, o gradient cancela a borda',
+          'border-radius muda a cor da borda',
+        ],
+        correct: 0,
+        explanation: 'Cada linha controla uma coisa diferente.',
+        hint: 'Cada linha cuida de uma parte diferente do elemento. Elas se atrapalham?',
+        demo: `
+          <style>
+            body{background:#333}
+            .caixa{border-top:2px solid white;border-radius:8px;background:linear-gradient(to right,purple,black);color:#fff;padding:30px}
+          </style>
+          <div class=caixa>Caixa</div>`,
+      }),
+
+      quiz({
+        title: 'Responsividade',
+        question: 'O que faz @media(max-width:500px){.card{width:100%}}?',
+        options: [
+          'Só vale na impressão',
+          'Mantém o card com 600px sempre',
+          'Página se adapta à tela; com tela ≤500px o card passa a 100% de largura',
+        ],
+        correct: 2,
+        explanation: '@media aplica regras condicionais ao tamanho da tela.',
+        hint: 'Uma regra só vale quando a condição sobre a tela é verdadeira.',
+        demo: `
+          <style>
+            .card{width:600px;background:#ccc;padding:10px}
+            @media(max-width:500px){.card{width:100%;background:purple;color:#fff}}
+          </style>
+          <div class=card>Fica roxo se a prévia tiver ≤500px</div>`,
+      }),
+    ];
+
+
+    /* ==============================================================
+       4. QUESTÕES PRÁTICAS
+       ============================================================== */
+
+    const PRACTICE_QUESTIONS = [
+      practice({
+        title: 'Prática: seletores',
+        goal: 'aplicar 3 estilos diferentes escolhendo o elemento certo.',
+        steps: [
+          'Selecione o h1 pelo ID dele e deixe o texto vermelho.',
+          'Selecione o primeiro parágrafo pela CLASS dele e deixe o texto verde.',
+          'Selecione TODOS os parágrafos pelo nome da tag e deixe o texto em itálico.',
+        ],
+        startCss: '/* use #id, .class e o nome da tag */\n',
+        html: '<h1 id=titulo>Minha página</h1><p class=destaque>Primeiro parágrafo</p><p>Segundo parágrafo</p>',
+        hint: 'Um símbolo marca o id, outro marca a class. A tag não leva símbolo.',
+        explanation: '# seleciona id, . seleciona class e o nome da tag seleciona todos os elementos.',
+        check(doc, css) {
+          const h1       = getComputedStyle(doc.querySelector('h1'));
+          const destaque = getComputedStyle(doc.querySelector('.destaque'));
+          const segundoP = getComputedStyle(doc.querySelectorAll('p')[1]);
+          const red      = parseRgb(h1.color);
+          const green    = parseRgb(destaque.color);
+
+          return [
+            ['h1 vermelho usando #titulo',     /#titulo/.test(css) && red[0] > 200 && red[1] < 80],
+            ['parágrafo verde usando .destaque', /\.destaque/.test(css) && green[1] > 100 && green[0] < 80],
+            ['todos os p em itálico',          destaque.fontStyle == 'italic' && segundoP.fontStyle == 'italic'],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Prática: propriedades e valores',
+        goal: 'alterar a aparência do parágrafo.',
+        where: 'dentro de p { ... }',
+        steps: [
+          'Deixe a cor do texto azul (blue).',
+          'Deixe o tamanho da fonte em 18px.',
+          'Deixe a cor de fundo cinza-claro (lightgray).',
+        ],
+        startCss: 'p{\n  \n}',
+        html: '<p>Texto de exemplo</p>',
+        hint: 'Os nomes são em inglês: cor do texto, tamanho da fonte e cor de fundo.',
+        explanation: 'color muda o texto, font-size o tamanho e background-color o fundo.',
+        check(doc) {
+          const style = getComputedStyle(doc.querySelector('p'));
+          const text  = parseRgb(style.color);
+
+          return [
+            ['color: blue',      text[2] > 200 && text[0] < 50 && text[1] < 50],
+            ['font-size: 18px',  style.fontSize == '18px'],
+            ['background-color: lightgray',
+              style.backgroundColor != 'rgba(0, 0, 0, 0)' && isLight(style.backgroundColor, 180)],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Prática: box model',
+        goal: 'montar o modelo de caixa da .caixa.',
+        where: 'dentro da regra .caixa que já existe',
+        steps: [
+          'Espaço EXTERNO de 20px ao redor da caixa.',
+          'Espaço INTERNO de 20px entre o conteúdo e a borda.',
+          'Borda de 3px, contínua (solid) e roxa (purple).',
+          'Largura de 150px.',
+        ],
+        startCss: '.caixa{\n  background:#eee;\n}',
+        html: '<div class=caixa>conteúdo</div>',
+        hint: 'Cada espaço tem um nome diferente. A borda pode ser resumida em uma linha só.',
+        explanation: 'margin é o espaço externo, padding o interno, border a linha e width a largura do conteúdo.',
+        check(doc) {
+          const style = getComputedStyle(doc.querySelector('.caixa'));
+
+          return [
+            ['margin 20px',       style.marginTop == '20px'],
+            ['padding 20px',      style.paddingTop == '20px'],
+            ['border 3px solid',  style.borderTopWidth == '3px' && style.borderTopStyle == 'solid'],
+            ['width 150px',       style.width == '150px'],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Prática: cascata',
+        goal: 'vencer um conflito de regras.',
+        context: 'SITUAÇÃO: o parágrafo recebe a regra de p (azul) e a de .texto (verde) ao mesmo tempo. Ele também tem um id (mensagem).',
+        steps: [
+          'Escreva uma nova regra que selecione o parágrafo pelo ID.',
+          'Dentro dela, deixe o texto vermelho.',
+          'Veja na prévia qual regra venceu e explique porquê.',
+        ],
+        startCss: 'p{color:blue}\n.texto{color:green}\n/* escreva a regra vencedora */\n',
+        html: '<p class=texto id=mensagem>Olá, mundo!</p>',
+        hint: 'Qual símbolo aponta para um único elemento e tem mais força que a class?',
+        explanation: 'id vence class, que vence elemento.',
+        check(doc, css) {
+          const color = parseRgb(getComputedStyle(doc.querySelector('p')).color);
+
+          return [
+            ['texto vermelho',          color[0] > 200 && color[1] < 80 && color[2] < 80],
+            ['usou o seletor #mensagem', /#mensagem/.test(css)],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Prática: flexbox',
+        goal: 'organizar 3 caixas lado a lado com Flexbox.',
+        where: 'na regra .linha, que é o container',
+        steps: [
+          'Ative o flexbox nesse container.',
+          'No eixo horizontal: caixa 1 na ponta esquerda, caixa 3 na ponta direita e caixa 2 no meio, com o espaço sobrando entre elas.',
+          'No eixo vertical: alinhe as caixas no centro.',
+        ],
+        startCss: '.linha{\n  height:150px;\n  background:lightgray;\n}\n.b{background:purple;color:white;padding:10px}',
+        html: '<div class=linha><div class=b>1</div><div class=b>2</div><div class=b>3</div></div>',
+        hint: "Primeiro ative o modo flex. Depois há duas propriedades de alinhamento, uma para cada eixo; um dos valores começa com 'space-'.",
+        explanation: 'justify-content age no eixo principal e align-items no eixo cruzado.',
+        check(doc) {
+          const row      = doc.querySelector('.linha');
+          const rowRect  = row.getBoundingClientRect();
+          const boxes    = [...row.children].map(box => box.getBoundingClientRect());
+          const first    = boxes[0];
+          const last     = boxes[2];
+
+          const sameLine       = boxes.every(b => Math.abs(b.top - first.top) < 2) && first.left < boxes[1].left;
+          const spreadOut      = Math.abs(first.left - rowRect.left) < 2 && Math.abs(last.right - rowRect.right) < 2;
+          const verticalCenter = first.height < rowRect.height - 10 &&
+                                 Math.abs((first.top + first.height / 2) - (rowRect.top + rowRect.height / 2)) < 2;
+
+          return [
+            ['display:flex',                getComputedStyle(row).display == 'flex'],
+            ['caixas na mesma linha',       sameLine],
+            ['espalhadas (space-between)',  spreadOut],
+            ['centralizadas na vertical',   verticalCenter],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Prática: pseudo-elemento',
+        goal: 'desenhar uma linha decorativa abaixo do título sem mexer no HTML.',
+        where: 'dentro de h2::after',
+        steps: [
+          'Defina o conteúdo do pseudo-elemento, mesmo que vazio (aspas sem nada dentro).',
+          'Faça ele ocupar a linha inteira, ficando abaixo do texto.',
+          'Largura de 100px e altura de 3px.',
+          'Fundo roxo (purple).',
+        ],
+        startCss: 'h2::after{\n  \n}',
+        html: '<h2>Título</h2>',
+        hint: 'Sem conteúdo o elemento virtual não nasce. Para ficar abaixo do texto, ele precisa se comportar como bloco.',
+        explanation: '::after cria um elemento virtual; sem content ele não aparece.',
+        check(doc) {
+          const style = getComputedStyle(doc.querySelector('h2'), '::after');
+
+          return [
+            ['content definido', style.content != 'none' && style.content != 'normal'],
+            ['display:block',    style.display == 'block'],
+            ['100px × 3px',      style.width == '100px' && style.height == '3px'],
+            ['fundo roxo',       style.backgroundColor == 'rgb(128, 0, 128)'],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Prática: posicionamento',
+        goal: 'colocar o selo NOVO no canto superior direito da caixa cinza.',
+        steps: [
+          'Mude a referência de posição do container.',
+          'Tire o selo do fluxo normal e o posicione em relação ao container.',
+          'Posicione o selo no canto superior direito',
+        ],
+        startCss: '.caixa{\n  width:300px;\n  height:150px;\n  background:lightgray;\n}\n.selo{\n  background:purple;\n  color:white;\n  padding:4px 8px;\n}',
+        html: '<div class=caixa><span class=selo>NOVO</span></div>',
+        hint: 'Para o absolute funcionar, o elemento pai precisa ser uma referência. Depois, use as propriedades de direção.',
+        explanation: 'absolute posiciona em relação ao ancestral com position diferente de static.',
+        check(doc) {
+          const box       = doc.querySelector('.caixa');
+          const badge     = doc.querySelector('.selo');
+          const boxRect   = box.getBoundingClientRect();
+          const badgeRect = badge.getBoundingClientRect();
+
+          return [
+            ['caixa com position:relative', getComputedStyle(box).position == 'relative'],
+            ['selo com position:absolute',  getComputedStyle(badge).position == 'absolute'],
+            ['selo no canto superior direito',
+              Math.abs(badgeRect.right - boxRect.right) < 2 && Math.abs(badgeRect.top - boxRect.top) < 2],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Prática: responsividade',
+        goal: 'fazer o card se adaptar a telas pequenas.',
+        context: 'SITUAÇÃO: a prévia ao lado simula um celular de 400px, mas o .card tem 600px e estoura a tela.',
+        where: 'abaixo da regra .card',
+        steps: [
+          'Abra uma media query para telas com largura máxima de 500px.',
+          'Defina largura de 100%.',
+        ],
+        previewWidth: '400px',
+        startCss: '.card{\n  width:600px;\n  background:lightgray;\n  padding:10px;\n}',
+        html: '<div class=card>Estreite a janela!</div>',
+        hint: 'Comece com @ e a palavra que dá nome à regra; a condição fica entre parênteses.',
+        explanation: '@media aplica regras só quando a condição de tela é verdadeira.',
+        check(doc, css) {
+          const style = getComputedStyle(doc.querySelector('.card'));
+
+          return [
+            ['@media (max-width:500px)',
+              /@media\s*\(\s*max-width\s*:\s*500px\s*\)/.test(css)],
+            ['card com width:100% dentro da media',
+              /@media[^{]*\{[^}]*\.card\s*\{[^}]*width\s*:\s*100%/.test(css)],
+            ['efeito visível na prévia', style.width != '600px'],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Centralizar um conteúdo',
+        goal: 'criar uma caixa centralizada com o conteúdo dentro.',
+        where: 'regra .container',
+        steps: [
+          'Largura de 80% do elemento pai.',
+          'Centralize a caixa na horizontal.',
+          'Fundo cinza-claro.',
+          'Espaçamento interno de 20px.',
+          'Texto centralizado dentro da caixa.',
+        ],
+        startCss: '.container{\n  \n}',
+        html: '<div class=container><h1>Bem-vindo!</h1><p>Esta é minha página.</p></div>',
+        hint: 'Para centralizar um bloco, as margens dos lados precisam ser iguais e automáticas.',
+        explanation: 'width define largura, margin:0 auto centraliza a caixa, padding o espaço interno, text-align centraliza o texto.',
+        check(doc) {
+          const container = doc.querySelector('.container');
+          const style     = getComputedStyle(container);
+          const bg        = style.backgroundColor;
+
+          return [
+            ['largura = 80% do pai',
+              Math.abs(container.offsetWidth / container.parentElement.clientWidth - .8) < .02],
+            ['caixa centralizada (margens iguais)',
+              toNumber(style.marginLeft) > 0 && Math.abs(toNumber(style.marginLeft) - toNumber(style.marginRight)) < 2],
+            ['fundo cinza-claro',
+              parseRgb(bg).length >= 3 && isLight(bg, 180) && bg != 'rgba(0, 0, 0, 0)'],
+            ['padding 20px',      style.paddingTop == '20px' && style.paddingLeft == '20px'],
+            ['texto centralizado', style.textAlign == 'center'],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Botão interativo',
+        goal: 'criar um botão estilizado que muda de cor ao passar o mouse, sem JavaScript.',
+        steps: [
+          'Defina fundo azul e texto branco no botão.',
+          'Remova a borda padrão.',
+          'Arredonde os cantos.',
+          'Dê um espaçamento interno confortável.',
+          'Troque a cor de fundo por outra cor ao passar o mouse sobre o botão.',
+        ],
+        startCss: 'button{\n  \n}\nbutton:hover{\n  \n}',
+        html: '<button>Clique aqui</button>',
+        hint: 'O hover é uma regra separada, com dois-pontos junto ao seletor. O botão traz uma borda padrão que precisa sair.',
+        explanation: 'A cor muda com a pseudo-classe :hover, sem JS.',
+        check(doc, css) {
+          const style = getComputedStyle(doc.querySelector('button'));
+          const bg    = parseRgb(style.backgroundColor);
+
+          return [
+            ['fundo azul',            bg[2] > 150 && bg[0] < 100],
+            ['texto branco',          style.color == 'rgb(255, 255, 255)'],
+            ['sem borda',             style.borderTopWidth == '0px' || style.borderTopStyle == 'none'],
+            ['cantos arredondados',   toNumber(style.borderTopLeftRadius) > 0],
+            ['padding > 0',           toNumber(style.paddingLeft) > 0],
+            ['background dentro de button:hover', /button:hover\s*\{[^}]*background/.test(css)],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Divisão visual',
+        goal: 'separar duas seções com uma linha.',
+        where: 'regra .conteudo, a segunda seção',
+        steps: [
+          'Crie uma borda apenas na parte de cima.',
+          'Espessura de 1px, estilo contínuo (solid) e cor cinza-clara.',
+        ],
+        startCss: '.conteudo{\n  \n}',
+        html: '<section class=introducao><h2>Introdução</h2></section><section class=conteudo><h2>Conteúdo</h2></section>',
+        hint: 'Existem propriedades de borda para cada lado: top, right, bottom e left.',
+        explanation: 'border-top atua só no lado superior, ideal para separar seções.',
+        check(doc) {
+          const style = getComputedStyle(doc.querySelector('.conteudo'));
+
+          return [
+            ['largura 1px',       style.borderTopWidth == '1px'],
+            ['estilo sólido',     style.borderTopStyle == 'solid'],
+            ['cor cinza-clara',   isLight(style.borderTopColor, 170)],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Degradê',
+        goal: 'criar uma faixa com degradê de roxo para preto usando só CSS.',
+        where: 'regra .faixa',
+        steps: [
+          'Altura de 80px.',
+          'Largura de 100% do elemento pai.',
+          'Fundo em degradê linear: roxo na esquerda, preto na direita.',
+        ],
+        startCss: '.faixa{\n  \n}',
+        html: '<div class=faixa></div>',
+        hint: 'É uma função, não uma cor simples. O nome dela descreve o tipo de degradê.',
+        explanation: 'linear-gradient gera uma imagem de fundo com transição de cores; background-color é uma cor única.',
+        check(doc) {
+          const strip = doc.querySelector('.faixa');
+          const style = getComputedStyle(strip);
+          const image = style.backgroundImage;
+
+          return [
+            ['altura 80px',          style.height == '80px'],
+            ['largura total',        strip.offsetWidth == strip.parentElement.clientWidth],
+            ['usa linear-gradient',  image.includes('linear-gradient')],
+            ['roxo e preto',         image.includes('128, 0, 128') && image.includes('rgb(0, 0, 0)')],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Cabeçalho fixo',
+        goal: 'manter o cabeçalho sempre visível ao rolar a página.',
+        context: 'SITUAÇÃO: o main tem 1500px de altura, então a página rola.',
+        steps: [
+          'Deixe o cabeçalho fixo na rolagem da janela.',
+          'Encoste-o no topo e na esquerda.',
+          'Faça ocupar 100% da largura.',
+          'Dê um fundo colorido para não ficar transparente.',
+          'Crie um espaçamento no container principal para que o conteúdo não fique escondido atrás do cabeçalho.',
+        ],
+        startCss: '.cabecalho{\n  \n}\nmain{\n  \n}',
+        html: "<header class=cabecalho><h1>Minha página</h1></header><main style='height:1500px'><p>Conteúdo...</p></main>",
+        hint: 'Fixo na janela é diferente de preso ao documento. Como ele sai do fluxo, o conteúdo sobe por baixo dele.',
+        explanation: 'fixed tira o cabeçalho do fluxo, por isso o conteúdo precisa de padding-top.',
+        check(doc) {
+          const header = doc.querySelector('.cabecalho');
+          const style  = getComputedStyle(header);
+
+          return [
+            ['position: fixed',  style.position == 'fixed'],
+            ['top: 0',           style.top == '0px'],
+            ['largura total',    header.offsetWidth >= doc.documentElement.clientWidth - 1],
+            ['conteúdo não fica escondido',
+              doc.querySelector('main').getBoundingClientRect().top >= header.offsetHeight - 1],
+          ];
+        },
+      }),
+
+      practice({
+        title: 'Investigar o problema',
+        goal: 'corrigir o código para o quadrado roxo ficar no centro exato do retângulo cinza.',
+        context: 'PROBLEMA: margin:auto só centraliza na horizontal; na vertical não funciona em um bloco comum.',
+        where: 'na regra .pai',
+        steps: [
+          'Ative o Flexbox.',
+          'Centralize os filhos no eixo horizontal.',
+          'Centralize os filhos no eixo vertical.',
+        ],
+        startCss: '.pai{\n  width:300px;\n  height:200px;\n  background-color:lightgray;\n}\n.filho{\n  width:100px;\n  height:50px;\n  background-color:purple;\n  margin:auto;\n}',
+        html: '<div class=pai><div class=filho>Conteúdo</div></div>',
+        hint: 'A solução vai no elemento pai, não no filho. São 3 declarações no total.',
+        explanation: 'margin:auto não centraliza na vertical em blocos normais; flex com justify/align resolve. Verifique visualmente na prévia!',
+        check(doc) {
+          const parentEl   = doc.querySelector('.pai');
+          const parentRect = parentEl.getBoundingClientRect();
+          const childRect  = doc.querySelector('.filho').getBoundingClientRect();
+
+          return [
+            ['pai usa display:flex', getComputedStyle(parentEl).display == 'flex'],
+            ['centralizado na horizontal',
+              Math.abs((parentRect.left + parentRect.width / 2) - (childRect.left + childRect.width / 2)) < 2],
+            ['centralizado na vertical',
+              Math.abs((parentRect.top + parentRect.height / 2) - (childRect.top + childRect.height / 2)) < 2],
+          ];
+        },
+      }),
+    ];
+
+
+    /* ==============================================================
+       5. ORDEM DAS QUESTÕES
+       Intercala: quiz, prática, quiz, prática...
+       Quando um dos grupos acaba, o restante do outro vem em seguida.
+       ============================================================== */
+
+    function interleave(first, second) {
+      const result = [];
+      const maxLength = Math.max(first.length, second.length);
+
+      for (let n = 0; n < maxLength; n++) {
+        if (n < first.length)  result.push(first[n]);
+        if (n < second.length) result.push(second[n]);
+      }
+      return result;
+    }
+
+    const LEVELS = interleave(QUIZ_QUESTIONS, PRACTICE_QUESTIONS);
+
+
+    /* ==============================================================
+       6. ESTADO DO JOGO E ELEMENTOS DA TELA
+       ============================================================== */
+
+    let currentLevel  = 0;      // índice da questão atual em LEVELS
+    let score         = 0;
+    let usedHint      = false;  // se o aluno pediu dica nesta questão (vale menos pontos)
+    let waitingNext   = false;  // questão resolvida: aguardando Enter para avançar
+
+    const output       = byId('output');
+    const commandInput = byId('command-input');
+    const editor       = byId('editor');
+    const preview      = byId('preview');
+    const runButton    = byId('run-button');
+
+    const POINTS_FULL = 10;
+    const POINTS_HINT = 5;
+
+
+    /* ==============================================================
+       7. FUNÇÕES DE TELA
+       ============================================================== */
+
+    /** Escreve uma linha no terminal. `cssClass` define a cor (msg-*). */
+    function print(text, cssClass = '') {
+      const line = document.createElement('div');
+      line.className = cssClass;
+      line.textContent = text;
+      output.appendChild(line);
+      output.scrollTop = 1e9; // rola até o fim
+    }
+
+    /** Monta o documento exibido na prévia: CSS do aluno + HTML da questão. */
+    function buildPreviewDoc(css, question) {
+      return `<style>body{font-family:sans-serif}${css}</style>${question.html}`;
+    }
+
+    /** Atualiza nível, pontuação e barra de progresso. */
+    function updateHud() {
+      byId('level-label').textContent = `Nível ${Math.min(currentLevel + 1, LEVELS.length)}/${LEVELS.length}`;
+      byId('score-label').textContent = `Pontos: ${score}`;
+      byId('progress-fill').style.width = (currentLevel / LEVELS.length * 100) + '%';
+    }
+
+    /** Mostra/oculta o editor e o botão "Executar" (só existem nas questões práticas). */
+    function showEditor(visible) {
+      editor.hidden = !visible;
+      runButton.hidden = !visible;
+    }
+
+
+    /* ==============================================================
+       8. FLUXO DO JOGO
+       ============================================================== */
+
+    /** Exibe a questão atual (ou o fim de jogo, se acabaram). */
+    function startLevel() {
+      if (currentLevel >= LEVELS.length) return endGame();
+
+      const question = LEVELS[currentLevel];
+      usedHint = false;
+      waitingNext = false;
+      preview.style.width = question.previewWidth || '';
+      output.innerHTML = '';
+      updateHud();
+
+      print(`[NÍVEL ${currentLevel + 1}/${LEVELS.length}] ${question.title}`, 'msg-title');
+
+      if (isQuiz(question)) {
+        showEditor(false);
+        print(question.question);
+        question.options.forEach((option, k) => print(`  ${'abc'[k]}) ${option}`));
+        print('Digite a, b ou c e Enter.', 'msg-dim');
+        preview.srcdoc = '';
+      } else {
+        showEditor(true);
+        print(question.question);
+        editor.value = question.startCss;
+        preview.srcdoc = buildPreviewDoc(question.startCss, question);
+        print('\n📄 HTML da página (não pode ser alterado):', 'msg-dim');
+        print(question.html.replace(/></g, '>\n<'), 'msg-user');
+      }
+
+      commandInput.focus();
+    }
+
+    /** Questão resolvida: soma pontos e espera Enter. */
+    function winLevel(question) {
+      score += usedHint ? POINTS_HINT : POINTS_FULL;
+      updateHud();
+      print('✔ ' + question.explanation, 'msg-ok');
+      print('Enter para o próximo nível ▸', 'msg-dim');
+      waitingNext = true;
+    }
+
+    /** Valida o CSS do aluno (questões práticas) e mostra o resultado de cada requisito. */
+    function runCheck() {
+      const question = LEVELS[currentLevel];
+      if (isQuiz(question) || waitingNext) return;
+
+      preview.srcdoc = buildPreviewDoc(editor.value, question);
+
+      // Espera a prévia renderizar antes de medir os estilos.
+      setTimeout(() => {
+        const results = question.check(preview.contentDocument, editor.value);
+
+        results.forEach(([label, passed]) => {
+          if (passed) print('✔ ' + label, 'msg-ok');
+        });
+
+        const failed = results.filter(([, passed]) => !passed).length;
+
+        if (failed === 0) {
+          winLevel(question);
+        } else {
+          print(`✘ ${failed} requisito(s) ainda não atendido(s). Releia o passo a passo.`, 'msg-error');
+          print('💡 ' + question.hint, 'msg-dim');
+        }
+      }, 250);
+    }
+
+    /** Fim de jogo: mostra pontuação final e mensagem. */
+    function endGame() {
+      updateHud();
+      output.innerHTML = '';
+      showEditor(false);
+
+      const maxScore = LEVELS.length * POINTS_FULL;
+      let message;
+      if (score >= LEVELS.length * 8.5)      message = 'Mestre do CSS!';
+      else if (score >= LEVELS.length * 5)   message = 'Muito bem, continue praticando!';
+      else                                   message = 'Revise os conceitos e tente de novo (recarregue a página).';
+
+      print('🏁 FIM DE JOGO', 'msg-title');
+      print(`Pontuação final: ${score}/${maxScore}`, 'msg-ok');
+      print(message, 'msg-user');
+    }
+
+    /** Vai para a próxima questão. */
+    function nextLevel() {
+      currentLevel++;
+      startLevel();
+    }
+
+
+    /* ==============================================================
+       9. COMANDOS DO TERMINAL
+       ============================================================== */
+
+    /** Trata a resposta (a/b/c) de uma questão de múltipla escolha. */
+    function answerQuiz(question, typed) {
+      const chosen = 'abc'.indexOf(typed);
+
+      if (typed.length != 1 || chosen < 0) return print('Use a, b ou c.', 'msg-dim');
+      if (waitingNext) return;
+
+      if (chosen == question.correct) {
+        preview.srcdoc = question.demo
+          ? `<style>body{font-family:sans-serif}</style>${question.demo}`
+          : '';
+        winLevel(question);
+      } else {
+        print('✘ Resposta incorreta. Tente de novo.', 'msg-error');
+        print('💡 ' + question.hint, 'msg-dim');
+      }
+    }
+
+    /** Processa o texto digitado ao pressionar Enter. */
+    function handleCommand(event) {
+      if (event.key != 'Enter') return;
+
+      const typed = commandInput.value.trim().toLowerCase();
+      commandInput.value = '';
+
+      const question = LEVELS[currentLevel];
+      if (!question) return;
+
+      // Enter vazio, após acertar: avança
+      if (waitingNext && !typed) return nextLevel();
+
+      print('$ ' + typed, 'msg-user');
+
+      if (typed == 'pular') return nextLevel();
+
+      if (typed == 'dica') {
+        usedHint = true;
+        return print('💡 Dica: ' + question.hint, 'msg-dim');
+      }
+
+      if (isQuiz(question)) {
+        answerQuiz(question, typed);
+      } else if (typed == 'rodar' || typed == 'executar') {
+        runCheck();
+      }
+    }
+
+
+    /* ==============================================================
+       10. EVENTOS E INICIALIZAÇÃO
+       ============================================================== */
+
+    commandInput.addEventListener('keydown', handleCommand);
+    runButton.onclick = runCheck;
+
+    // Ctrl+Enter no editor também executa a verificação
+    editor.addEventListener('keydown', event => {
+      if (event.ctrlKey && event.key == 'Enter') runCheck();
+    });
+
+    // Prévia ao vivo: atualiza 300ms depois de parar de digitar
+    let previewTimer;
+    editor.addEventListener('input', () => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => {
+        const question = LEVELS[currentLevel];
+        if (question && !isQuiz(question)) {
+          preview.srcdoc = buildPreviewDoc(editor.value, question);
+        }
+      }, 300);
+    });
+
+    startLevel();
+  </script>
+</body>
+</html>
+
+</html>
