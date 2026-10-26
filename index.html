@@ -731,13 +731,12 @@
           'Largura de 80% do elemento pai.',
           'Centralize a caixa na horizontal.',
           'Fundo cinza-claro.',
-          'Espaçamento interno de 20px.',
           'Texto centralizado dentro da caixa.',
         ],
         startCss: '.container{\n  \n}',
         html: '<div class=container><h1>Bem-vindo!</h1><p>Esta é minha página.</p></div>',
         hint: 'Para centralizar um bloco, as margens dos lados precisam ser iguais e automáticas.',
-        explanation: 'width define largura, margin:0 auto centraliza a caixa, padding o espaço interno, text-align centraliza o texto.',
+        explanation: 'width define largura, margin:0 auto centraliza a caixa, text-align centraliza o texto.',
         check(doc) {
           const container = doc.querySelector('.container');
           const style     = getComputedStyle(container);
@@ -750,7 +749,6 @@
               toNumber(style.marginLeft) > 0 && Math.abs(toNumber(style.marginLeft) - toNumber(style.marginRight)) < 2],
             ['fundo cinza-claro',
               parseRgb(bg).length >= 3 && isLight(bg, 180) && bg != 'rgba(0, 0, 0, 0)'],
-            ['padding 20px',      style.paddingTop == '20px' && style.paddingLeft == '20px'],
             ['texto centralizado', style.textAlign == 'center'],
           ];
         },
